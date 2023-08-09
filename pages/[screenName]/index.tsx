@@ -16,6 +16,7 @@ import { GetServerSideProps, NextPage } from 'next';
 import ResizeTextarea from 'react-textarea-autosize';
 import { useEffect, useState } from 'react';
 import axios, { AxiosResponse } from 'axios';
+import { useQuery } from 'react-query';
 import { ServiceLayout } from '@/components/service_layout';
 import { useAuth } from '@/context/auth_user.context';
 import { InAuthUser } from '@/models/in_auth_user';
@@ -77,25 +78,7 @@ const UserHomePage: NextPage<Props> = function ({ userInfo }) {
   const toast = useToast();
   const { authUser } = useAuth();
   const [messageList, setMessageList] = useState<InMessage[]>([]);
-  //uid가 string으로 반환
-  async function fetchMessageList(uid: string) {
-    try {
-      const resp = await fetch(`/api/messages.list?uid=${uid}&page=${page}&size=3`);
-      if (resp.status === 200) {
-        const data: {
-          totalElements: number;
-          totalPages: number;
-          page: number;
-          size: number;
-          content: InMessage[];
-        } = await resp.json();
-        setTotalPages(data.totalPages);
-        setMessageList((prev) => [...prev, ...data.content]);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }
+
   async function fetchMessageInfo({ uid, messageId }: { uid: string; messageId: string }) {
     try {
       const resp = await fetch(`/api/messages.info?uid=${uid}&messageId=${messageId}`);
@@ -115,13 +98,36 @@ const UserHomePage: NextPage<Props> = function ({ userInfo }) {
       console.error(err);
     }
   }
-  useEffect(() => {
-    if (userInfo === null) return;
-    fetchMessageList(userInfo.uid);
-  }, [userInfo, messageListFetchTrigger, page]);
+  const messageListQueryKey = ['messageList', userInfo?.uid, page, messageListFetchTrigger];
+  useQuery(
+    messageListQueryKey,
+    async () =>
+      // eslint-disable-next-line no-return-await
+      await axios.get<{
+        totalElements: number;
+        totalPages: number;
+        page: number;
+        size: number;
+        content: InMessage[];
+      }>(`/api/messages.list?uid=${userInfo?.uid}&page=${page}&size=10`),
+    {
+      keepPreviousData: true,
+      refetchOnWindowFocus: false,
+      onSuccess: (data) => {
+        setTotalPages(data.data.totalPages);
+        if (page === 1) {
+          setMessageList([...data.data.content]);
+          return;
+        }
+        setMessageList((prev) => [...prev, ...data.data.content]);
+      },
+    },
+  );
+
   if (userInfo === null) {
     return <p>사용자를 찾을 수 없습니다.</p>;
   }
+
   const isOwner = authUser !== null && authUser.uid === userInfo.uid;
   return (
     <ServiceLayout title={`${userInfo.displayName}의 홈`} minH="100vh" backgroundColor="gray.50">
@@ -198,6 +204,10 @@ const UserHomePage: NextPage<Props> = function ({ userInfo }) {
                   toast({ title: '메시지 등록 실패', position: 'top-right' });
                 }
                 setMessage('');
+                setPage(1);
+                setTimeout(() => {
+                  setMessageListFetchTrigger((prev) => !prev);
+                }, 50);
                 setMessageListFetchTrigger((prev) => !prev);
               }}
             >

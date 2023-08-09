@@ -1,4 +1,4 @@
-import { database, firestore } from 'firebase-admin';
+import { firestore } from 'firebase-admin';
 import CustomServerError from '@/controllers/error/custom_server_error';
 import FirebaseAdmin from '../firebase_admin';
 import { InMessage, InMessageServer } from './in_message';
@@ -6,7 +6,7 @@ import { InAuthUser } from '../in_auth_user';
 
 const MEMBER_COL = 'members';
 const MSG_COL = 'messages';
-const SCR_NAME_COL = 'screen_names';
+//const SCR_NAME_COL = 'screen_names';
 
 const { Firestore } = FirebaseAdmin.getInstance();
 

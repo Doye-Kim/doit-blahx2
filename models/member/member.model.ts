@@ -1,9 +1,8 @@
 /* eslint-disable no-empty-pattern */
-import { type } from 'os';
 import FirebaseAdmin from '../firebase_admin';
 import { InAuthUser } from '../in_auth_user';
 
-const MEMBER_COL = 'members';
+//const MEMBER_COL = 'members';
 const SCR_NAME_COL = 'screen_names';
 type AddResult = { result: true; id: string } | { result: false; message: string };
 //result == true, id=string으로 반화냏라
