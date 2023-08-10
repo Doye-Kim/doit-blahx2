@@ -1,9 +1,26 @@
 /* eslint-disable react/no-unused-prop-types */
-import { Box, Flex, Avatar, Text, Divider, Textarea, Button } from '@chakra-ui/react';
+import {
+  Box,
+  Flex,
+  Avatar,
+  Text,
+  Divider,
+  Textarea,
+  Button,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
+  Spacer,
+  IconButton,
+  useToast,
+} from '@chakra-ui/react';
 import ResizeTextarea from 'react-textarea-autosize';
 import { useState } from 'react';
 import { InMessage } from '@/models/message/in_message';
 import convertDateToString from '@/utils/convert_date_to_string';
+import MoreBtnIcon from './more_btn_icon';
+import FirebaseClient from '@/models/firebase_client';
 
 interface Props {
   uid: string;
@@ -16,6 +33,7 @@ interface Props {
 
 const MessageItem = function ({ uid, displayName, photoURL, item, isOwner, onSendComplete }: Props) {
   const [reply, setReply] = useState('');
+  const toast = useToast();
 
   async function postReply() {
     const resp = await fetch('api/messages.add.reply', {
@@ -30,13 +48,36 @@ const MessageItem = function ({ uid, displayName, photoURL, item, isOwner, onSen
     if (resp.status < 300) {
       onSendComplete();
     }
-    console.info(resp.status);
   }
+
+  async function updateMessage({ deny }: { deny: boolean }) {
+    const token = await FirebaseClient.getInstance().Auth.currentUser?.getIdToken();
+    if (token === undefined) {
+      toast({
+        title: '로그인한 사용자만 사용할 수 있는 메뉴입니다',
+      });
+      return;
+    }
+    const resp = await fetch('api/messages.deny', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', authorization: token },
+      body: JSON.stringify({
+        uid,
+        messageId: item.id,
+        deny,
+      }),
+    });
+    if (resp.status < 300) {
+      onSendComplete();
+    }
+  }
+
   const haveReply = item.reply !== undefined;
+  const isDeny = item.deny !== undefined ? item.deny === true : false;
   return (
     <Box borderRadius="md" width="full" bg="white" boxShadow="md">
       <Box>
-        <Flex pl="2" pt="2" align="center">
+        <Flex px="2" pt="2" align="center">
           <Avatar
             size="xs"
             src={item.author ? item.author.photoURL ?? 'https://bit.ly/broken-link' : 'https://bit.ly/broken-link'}
@@ -47,6 +88,29 @@ const MessageItem = function ({ uid, displayName, photoURL, item, isOwner, onSen
           <Text whiteSpace="pre-line" fontSize="xx-small" color="gray.500" ml="1">
             {convertDateToString(item.createAt)}
           </Text>
+          <Spacer />
+          {isOwner && (
+            <Menu>
+              <MenuButton
+                as={IconButton}
+                icon={<MoreBtnIcon />}
+                width="24px"
+                height="24px"
+                variant="link"
+                size="xs"
+                borderRadius="full"
+              />
+              <MenuList>
+                <MenuItem
+                  onClick={() => {
+                    updateMessage({ deny: item.deny !== undefined ? !item.deny : true });
+                  }}
+                >
+                  {isDeny ? '비공개 처리 해제' : '비공개 처리'}
+                </MenuItem>
+              </MenuList>
+            </Menu>
+          )}
         </Flex>
       </Box>
       <Box p="2">
